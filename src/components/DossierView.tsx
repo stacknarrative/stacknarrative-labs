@@ -103,30 +103,6 @@ export function DossierView({ company }: { company: CompanyDossier }) {
         </Section>
       )}
 
-      {company.ctas.length > 0 && (
-        <Section title="Calls to action">
-          <div className="flex flex-wrap gap-2 text-sm">
-            {company.ctas.map((c) => (
-              <span key={c.id} className="rounded bg-neutral-800 px-2 py-1">
-                {c.label} {c.location ? `(${c.location})` : ''}
-              </span>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {company.integrations.length > 0 && (
-        <Section title="Integrations">
-          <div className="flex flex-wrap gap-2 text-sm">
-            {company.integrations.map((i) => (
-              <span key={i.id} className="rounded bg-neutral-800 px-2 py-1">
-                {i.name}
-              </span>
-            ))}
-          </div>
-        </Section>
-      )}
-
       {company.competitors.length > 0 && (
         <Section title="Competitors mentioned">
           <div className="flex flex-wrap gap-2 text-sm">

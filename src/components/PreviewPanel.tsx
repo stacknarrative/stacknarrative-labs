@@ -158,20 +158,6 @@ export function PreviewPanel({ preview }: { preview: PreviewData }) {
           </div>
         )}
 
-        {extracted.ctas?.length > 0 && (
-          <div>
-            <h3 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">Calls to action</h3>
-            <Chips items={extracted.ctas.map((c) => `${c.label}${c.location ? ` (${c.location})` : ''}`)} />
-          </div>
-        )}
-
-        {extracted.integrations?.length > 0 && (
-          <div>
-            <h3 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">Integrations</h3>
-            <Chips items={extracted.integrations.map((i) => i.name)} />
-          </div>
-        )}
-
         {extracted.competitors?.length > 0 && (
           <div>
             <h3 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">Competitors mentioned</h3>

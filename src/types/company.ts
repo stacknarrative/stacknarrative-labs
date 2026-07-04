@@ -27,18 +27,6 @@ export interface MenuItem {
   position: number;
 }
 
-export interface Cta {
-  id: string;
-  label: string;
-  destination_url?: string | null;
-  location?: string | null;
-}
-
-export interface Integration {
-  id: string;
-  name: string;
-}
-
 export interface Competitor {
   id: string;
   competitor_name: string;
@@ -98,8 +86,6 @@ export interface CompanyDossier extends Company {
   founders: Founder[];
   products: Product[];
   menu_items: MenuItem[];
-  ctas: Cta[];
-  integrations: Integration[];
   competitors: Competitor[];
   pricing_tiers: PricingTier[];
   review_themes: ReviewTheme[];
@@ -119,8 +105,6 @@ export interface ExtractedCompanyData {
   founders: Omit<Founder, 'id'>[];
   products: (Omit<Product, 'id' | 'features'> & { features: Omit<ProductFeature, 'id'>[] })[];
   menu_items: Omit<MenuItem, 'id'>[];
-  ctas: Omit<Cta, 'id'>[];
-  integrations: Omit<Integration, 'id'>[];
   competitors: Omit<Competitor, 'id' | 'linked_company_id'>[];
   pricing_tiers: Omit<PricingTier, 'id'>[];
 }

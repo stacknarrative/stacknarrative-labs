@@ -6,8 +6,6 @@ import type {
   Product,
   ProductFeature,
   MenuItem,
-  Cta,
-  Integration,
   Competitor,
   PricingTier,
 } from '../types/company';
@@ -24,7 +22,7 @@ export async function getCompanyDossier(db: D1Database, companyId: string): Prom
   const company = await db.prepare('SELECT * FROM companies WHERE id = ?').bind(companyId).first<Company>();
   if (!company) return null;
 
-  const [founders, products, features, menuItems, ctas, integrations, competitors, pricingTiers, reviewThemes, positioningNotes, fieldSources] =
+  const [founders, products, features, menuItems, competitors, pricingTiers, reviewThemes, positioningNotes, fieldSources] =
     await Promise.all([
       db.prepare('SELECT * FROM founders WHERE company_id = ?').bind(companyId).all<Founder>(),
       db.prepare('SELECT * FROM products WHERE company_id = ?').bind(companyId).all<Product>(),
@@ -37,8 +35,6 @@ export async function getCompanyDossier(db: D1Database, companyId: string): Prom
         .bind(companyId)
         .all<ProductFeature & { product_id: string }>(),
       db.prepare('SELECT * FROM menu_items WHERE company_id = ? ORDER BY position ASC').bind(companyId).all<MenuItem>(),
-      db.prepare('SELECT * FROM ctas WHERE company_id = ?').bind(companyId).all<Cta>(),
-      db.prepare('SELECT * FROM integrations WHERE company_id = ?').bind(companyId).all<Integration>(),
       db.prepare('SELECT * FROM competitors WHERE company_id = ?').bind(companyId).all<Competitor>(),
       db.prepare('SELECT * FROM pricing_tiers WHERE company_id = ?').bind(companyId).all<PricingTier>(),
       db.prepare('SELECT * FROM review_themes WHERE company_id = ?').bind(companyId).all(),
@@ -58,8 +54,6 @@ export async function getCompanyDossier(db: D1Database, companyId: string): Prom
     founders: founders.results ?? [],
     products: (products.results ?? []).map((p) => ({ ...p, features: featuresByProduct.get(p.id) ?? [] })),
     menu_items: menuItems.results ?? [],
-    ctas: ctas.results ?? [],
-    integrations: integrations.results ?? [],
     competitors: competitors.results ?? [],
     pricing_tiers: pricingTiers.results ?? [],
     review_themes: (reviewThemes.results ?? []) as any,
@@ -141,20 +135,6 @@ export async function createDraftCompany(db: D1Database, input: CreateDraftInput
         .bind(newId(), companyId, item.label, item.url ?? null, item.position ?? index)
     );
   });
-
-  for (const cta of extracted.ctas ?? []) {
-    statements.push(
-      db
-        .prepare('INSERT INTO ctas (id, company_id, label, destination_url, location) VALUES (?, ?, ?, ?, ?)')
-        .bind(newId(), companyId, cta.label, cta.destination_url ?? null, cta.location ?? null)
-    );
-  }
-
-  for (const integration of extracted.integrations ?? []) {
-    statements.push(
-      db.prepare('INSERT INTO integrations (id, company_id, name) VALUES (?, ?, ?)').bind(newId(), companyId, integration.name)
-    );
-  }
 
   for (const competitor of extracted.competitors ?? []) {
     statements.push(

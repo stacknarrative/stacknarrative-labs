@@ -56,24 +56,6 @@ CREATE TABLE menu_items (
 
 CREATE INDEX idx_menu_items_company ON menu_items(company_id);
 
-CREATE TABLE ctas (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  label TEXT NOT NULL,
-  destination_url TEXT,
-  location TEXT -- 'hero' | 'nav' | 'footer' | 'pricing'
-);
-
-CREATE INDEX idx_ctas_company ON ctas(company_id);
-
-CREATE TABLE integrations (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  name TEXT NOT NULL
-);
-
-CREATE INDEX idx_integrations_company ON integrations(company_id);
-
 CREATE TABLE competitors (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,

@@ -58,26 +58,6 @@ const EXTRACTION_SCHEMA = {
         required: ['label'],
       },
     },
-    ctas: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          label: { type: 'string' },
-          destination_url: { type: 'string' },
-          location: { type: 'string', enum: ['hero', 'nav', 'footer', 'pricing'] },
-        },
-        required: ['label'],
-      },
-    },
-    integrations: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: { name: { type: 'string' } },
-        required: ['name'],
-      },
-    },
     competitors: {
       type: 'array',
       items: {
@@ -102,7 +82,7 @@ const EXTRACTION_SCHEMA = {
       },
     },
   },
-  required: ['founders', 'products', 'menu_items', 'ctas', 'integrations', 'competitors', 'pricing_tiers'],
+  required: ['founders', 'products', 'menu_items', 'competitors', 'pricing_tiers'],
 };
 
 /**
