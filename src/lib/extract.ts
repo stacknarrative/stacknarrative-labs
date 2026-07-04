@@ -144,7 +144,9 @@ Visible page text:
 ${page.text}
 """
 
-Extract every field you can find evidence for. Leave a field out entirely rather than guessing when the page gives no evidence. Do not invent founders, products, or pricing that aren't mentioned.`,
+Always fill in "name" and "tagline": infer the company name from the page title, logo, hero copy, or the domain (${page.url}), and the tagline from the hero headline or title — these are always derivable, so never leave them blank.
+
+For all other fields, extract every field you can find evidence for, and leave a field out entirely rather than guessing when the page gives no evidence. Do not invent founders, products, or pricing that aren't mentioned.`,
       },
     ],
   });
