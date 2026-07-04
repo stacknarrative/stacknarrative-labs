@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { normalizeDomain, toWebsiteUrl } from '../../lib/domain';
-import { findCompanyByDomain, createDraftCompany, getCompanyDossier, touchLastScanned } from '../../lib/db';
+import { findCompanyByDomain, getCompanyDossier } from '../../lib/db';
 import { scrapePage } from '../../lib/scraper';
 import { extractCompanyData } from '../../lib/extract';
 
@@ -29,7 +29,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     return Response.json({ error: 'That does not look like a valid URL' }, { status: 400 });
   }
 
-  // Dedup gate: never re-scrape a company we already have.
+  // Dedup gate: never re-scrape a company we already have. This check is free — no AI call.
   const existing = await findCompanyByDomain(DB, domain);
   if (existing) {
     const dossier = await getCompanyDossier(DB, existing.id);
@@ -56,9 +56,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     );
   }
 
-  const companyId = await createDraftCompany(DB, { domain, websiteUrl, extracted, sourceUrl: scraped.url });
-  await touchLastScanned(DB, companyId);
-
-  const dossier = await getCompanyDossier(DB, companyId);
-  return Response.json({ duplicate: false, company: dossier }, { status: 201 });
+  // Nothing is written to the database here — this is a preview only.
+  // The record is only persisted if the researcher explicitly saves it (see /api/companies/save).
+  return Response.json(
+    { duplicate: false, saved: false, domain, websiteUrl, sourceUrl: scraped.url, extracted },
+    { status: 200 }
+  );
 };

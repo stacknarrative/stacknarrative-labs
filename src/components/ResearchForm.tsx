@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import type { CompanyDossier } from '../types/company';
 import { DossierView } from './DossierView';
-import { VerifyPanel } from './VerifyPanel';
+import { PreviewPanel, type PreviewData } from './PreviewPanel';
 
-type Result = { kind: 'duplicate'; company: CompanyDossier } | { kind: 'new'; company: CompanyDossier } | null;
+type Result = { kind: 'duplicate'; company: CompanyDossier } | { kind: 'preview'; preview: PreviewData } | null;
 
 export function ResearchForm() {
   const [url, setUrl] = useState('');
@@ -23,11 +23,26 @@ export function ResearchForm() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url }),
       });
-      const data = (await res.json()) as { error?: string; duplicate?: boolean; company: CompanyDossier };
+      const data = (await res.json()) as {
+        error?: string;
+        duplicate?: boolean;
+        company?: CompanyDossier;
+        domain?: string;
+        websiteUrl?: string;
+        sourceUrl?: string;
+        extracted?: PreviewData['extracted'];
+      };
       if (!res.ok) {
         throw new Error(data.error || 'Research failed');
       }
-      setResult({ kind: data.duplicate ? 'duplicate' : 'new', company: data.company });
+      if (data.duplicate && data.company) {
+        setResult({ kind: 'duplicate', company: data.company });
+      } else if (data.domain && data.websiteUrl && data.sourceUrl && data.extracted) {
+        setResult({
+          kind: 'preview',
+          preview: { domain: data.domain, websiteUrl: data.websiteUrl, sourceUrl: data.sourceUrl, extracted: data.extracted },
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -67,7 +82,7 @@ export function ResearchForm() {
         </div>
       )}
 
-      {result?.kind === 'new' && <VerifyPanel company={result.company} />}
+      {result?.kind === 'preview' && <PreviewPanel preview={result.preview} />}
     </div>
   );
 }
