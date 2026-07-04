@@ -46,18 +46,6 @@ const EXTRACTION_SCHEMA = {
         required: ['name', 'features'],
       },
     },
-    menu_items: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          label: { type: 'string' },
-          url: { type: 'string' },
-          position: { type: 'number' },
-        },
-        required: ['label'],
-      },
-    },
     competitors: {
       type: 'array',
       items: {
@@ -82,7 +70,7 @@ const EXTRACTION_SCHEMA = {
       },
     },
   },
-  required: ['founders', 'products', 'menu_items', 'competitors', 'pricing_tiers'],
+  required: ['founders', 'products', 'competitors', 'pricing_tiers'],
 };
 
 /**
@@ -92,11 +80,6 @@ const EXTRACTION_SCHEMA = {
  */
 export async function extractCompanyData(apiKey: string, page: ScrapedPage): Promise<ExtractedCompanyData> {
   const client = new Anthropic({ apiKey });
-
-  const navHint = page.navLinks
-    .slice(0, 30)
-    .map((l) => `- ${l.label}: ${l.url}`)
-    .join('\n');
 
   const message = await client.messages.create({
     model: 'claude-sonnet-5',
@@ -115,9 +98,6 @@ export async function extractCompanyData(apiKey: string, page: ScrapedPage): Pro
         content: `You are extracting company research data for a B2B positioning/marketing analyst.
 Source page: ${page.url}
 Page title: ${page.title}
-
-Detected nav/header links:
-${navHint || '(none detected)'}
 
 Visible page text:
 """

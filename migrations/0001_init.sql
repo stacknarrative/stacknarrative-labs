@@ -46,16 +46,6 @@ CREATE TABLE product_features (
 
 CREATE INDEX idx_features_product ON product_features(product_id);
 
-CREATE TABLE menu_items (
-  id TEXT PRIMARY KEY,
-  company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-  label TEXT NOT NULL,
-  url TEXT,
-  position INTEGER NOT NULL DEFAULT 0
-);
-
-CREATE INDEX idx_menu_items_company ON menu_items(company_id);
-
 CREATE TABLE competitors (
   id TEXT PRIMARY KEY,
   company_id TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,

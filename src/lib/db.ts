@@ -5,7 +5,6 @@ import type {
   Founder,
   Product,
   ProductFeature,
-  MenuItem,
   Competitor,
   PricingTier,
 } from '../types/company';
@@ -22,7 +21,7 @@ export async function getCompanyDossier(db: D1Database, companyId: string): Prom
   const company = await db.prepare('SELECT * FROM companies WHERE id = ?').bind(companyId).first<Company>();
   if (!company) return null;
 
-  const [founders, products, features, menuItems, competitors, pricingTiers, reviewThemes, positioningNotes, fieldSources] =
+  const [founders, products, features, competitors, pricingTiers, reviewThemes, positioningNotes, fieldSources] =
     await Promise.all([
       db.prepare('SELECT * FROM founders WHERE company_id = ?').bind(companyId).all<Founder>(),
       db.prepare('SELECT * FROM products WHERE company_id = ?').bind(companyId).all<Product>(),
@@ -34,7 +33,6 @@ export async function getCompanyDossier(db: D1Database, companyId: string): Prom
         )
         .bind(companyId)
         .all<ProductFeature & { product_id: string }>(),
-      db.prepare('SELECT * FROM menu_items WHERE company_id = ? ORDER BY position ASC').bind(companyId).all<MenuItem>(),
       db.prepare('SELECT * FROM competitors WHERE company_id = ?').bind(companyId).all<Competitor>(),
       db.prepare('SELECT * FROM pricing_tiers WHERE company_id = ?').bind(companyId).all<PricingTier>(),
       db.prepare('SELECT * FROM review_themes WHERE company_id = ?').bind(companyId).all(),
@@ -53,7 +51,6 @@ export async function getCompanyDossier(db: D1Database, companyId: string): Prom
     ...company,
     founders: founders.results ?? [],
     products: (products.results ?? []).map((p) => ({ ...p, features: featuresByProduct.get(p.id) ?? [] })),
-    menu_items: menuItems.results ?? [],
     competitors: competitors.results ?? [],
     pricing_tiers: pricingTiers.results ?? [],
     review_themes: (reviewThemes.results ?? []) as any,
@@ -127,14 +124,6 @@ export async function createDraftCompany(db: D1Database, input: CreateDraftInput
       );
     }
   }
-
-  (extracted.menu_items ?? []).forEach((item, index) => {
-    statements.push(
-      db
-        .prepare('INSERT INTO menu_items (id, company_id, label, url, position) VALUES (?, ?, ?, ?, ?)')
-        .bind(newId(), companyId, item.label, item.url ?? null, item.position ?? index)
-    );
-  });
 
   for (const competitor of extracted.competitors ?? []) {
     statements.push(

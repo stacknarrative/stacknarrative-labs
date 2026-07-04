@@ -91,18 +91,6 @@ export function DossierView({ company }: { company: CompanyDossier }) {
         </Section>
       )}
 
-      {company.menu_items.length > 0 && (
-        <Section title="Site navigation">
-          <div className="flex flex-wrap gap-2 text-sm">
-            {company.menu_items.map((m) => (
-              <span key={m.id} className="rounded bg-neutral-800 px-2 py-1">
-                {m.label}
-              </span>
-            ))}
-          </div>
-        </Section>
-      )}
-
       {company.competitors.length > 0 && (
         <Section title="Competitors mentioned">
           <div className="flex flex-wrap gap-2 text-sm">

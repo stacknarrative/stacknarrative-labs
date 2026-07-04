@@ -20,13 +20,6 @@ export interface Product {
   features: ProductFeature[];
 }
 
-export interface MenuItem {
-  id: string;
-  label: string;
-  url?: string | null;
-  position: number;
-}
-
 export interface Competitor {
   id: string;
   competitor_name: string;
@@ -85,7 +78,6 @@ export interface Company {
 export interface CompanyDossier extends Company {
   founders: Founder[];
   products: Product[];
-  menu_items: MenuItem[];
   competitors: Competitor[];
   pricing_tiers: PricingTier[];
   review_themes: ReviewTheme[];
@@ -104,7 +96,6 @@ export interface ExtractedCompanyData {
   icp?: string;
   founders: Omit<Founder, 'id'>[];
   products: (Omit<Product, 'id' | 'features'> & { features: Omit<ProductFeature, 'id'>[] })[];
-  menu_items: Omit<MenuItem, 'id'>[];
   competitors: Omit<Competitor, 'id' | 'linked_company_id'>[];
   pricing_tiers: Omit<PricingTier, 'id'>[];
 }

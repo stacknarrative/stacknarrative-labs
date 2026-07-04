@@ -151,13 +151,6 @@ export function PreviewPanel({ preview }: { preview: PreviewData }) {
           </div>
         )}
 
-        {extracted.menu_items?.length > 0 && (
-          <div>
-            <h3 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">Site navigation</h3>
-            <Chips items={extracted.menu_items.map((m) => m.label)} />
-          </div>
-        )}
-
         {extracted.competitors?.length > 0 && (
           <div>
             <h3 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">Competitors mentioned</h3>
