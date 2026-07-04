@@ -14,6 +14,13 @@ export default defineConfig({
   }),
   integrations: [react()],
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    resolve: {
+      // React's default server renderer needs MessageChannel, which the
+      // Workers runtime doesn't provide. The edge build avoids it.
+      alias: {
+        'react-dom/server': 'react-dom/server.edge'
+      }
+    }
   }
 });
