@@ -1,0 +1,35 @@
+{
+  "name": "stacknarrative-labs",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "typecheck": "astro sync && tsc --noEmit && astro check",
+    "db:migrate:local": "wrangler d1 execute labs_db --local --file=./migrations/0001_init.sql",
+    "db:migrate:remote": "wrangler d1 execute labs_db --remote --file=./migrations/0001_init.sql",
+    "deploy": "astro build && wrangler pages deploy dist"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^12.6.13",
+    "@astrojs/react": "^4.4.2",
+    "@anthropic-ai/sdk": "^0.68.0",
+    "astro": "^5.16.15",
+    "cheerio": "^1.2.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.6",
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "@cloudflare/workers-types": "^4.20250109.0",
+    "@tailwindcss/vite": "^4.1.16",
+    "tailwindcss": "^4.1.16",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.44.1"
+  }
+}

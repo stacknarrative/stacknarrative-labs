@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { ResearchForm } from '../components/ResearchForm';
+import { CompanyList } from '../components/CompanyList';
+---
+<Base title="Research">
+  <h1 class="mb-6 text-2xl font-semibold">Company research</h1>
+  <ResearchForm client:load />
+
+  <h2 class="mb-3 mt-10 text-lg font-semibold">Researched companies</h2>
+  <CompanyList client:load />
+</Base>
