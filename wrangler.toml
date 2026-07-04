@@ -10,4 +10,4 @@ directory = "./dist"
 [[d1_databases]]
 binding = "DB"
 database_name = "labs_db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "05d5fdf5-864d-4dde-9dac-39a40e136805"
