@@ -1,4 +1,4 @@
-import type { Mention, MentionJob, ExtractedMention } from '../types/mentions';
+import type { Mention, ExtractedMention } from '../types/mentions';
 import { newId } from './id';
 
 export async function getMentions(db: D1Database, companyId: string): Promise<Mention[]> {
@@ -7,38 +7,6 @@ export async function getMentions(db: D1Database, companyId: string): Promise<Me
     .bind(companyId)
     .all<Mention>();
   return rows.results ?? [];
-}
-
-const STALE_MS = 90_000;
-
-export async function getMentionJob(db: D1Database, companyId: string): Promise<MentionJob | null> {
-  const job = await db
-    .prepare('SELECT status, error, updated_at FROM mention_jobs WHERE company_id = ?')
-    .bind(companyId)
-    .first<MentionJob>();
-  if (!job) return null;
-
-  // If a job has been "running" too long, the background worker was almost certainly killed.
-  // Flag it as failed so the UI stops spinning and offers a retry instead of hanging forever.
-  if (job.status === 'running') {
-    const age = Date.now() - new Date(`${job.updated_at}Z`).getTime();
-    if (Number.isFinite(age) && age > STALE_MS) {
-      const error = 'Scan timed out — please retry';
-      await setMentionJob(db, companyId, 'error', error);
-      return { status: 'error', error, updated_at: job.updated_at };
-    }
-  }
-  return job;
-}
-
-export async function setMentionJob(db: D1Database, companyId: string, status: string, error: string | null = null): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO mention_jobs (company_id, status, error, updated_at) VALUES (?, ?, ?, datetime('now'))
-       ON CONFLICT(company_id) DO UPDATE SET status = excluded.status, error = excluded.error, updated_at = datetime('now')`
-    )
-    .bind(companyId, status, error)
-    .run();
 }
 
 export async function saveMentions(db: D1Database, companyId: string, mentions: ExtractedMention[]): Promise<void> {

@@ -13,10 +13,21 @@ function classify(url: string, title: string): MentionCategory {
   return 'other';
 }
 
+function harvest(content: Anthropic.ContentBlock[], into: Map<string, string>) {
+  for (const block of content) {
+    const b = block as unknown as { type: string; content?: unknown };
+    if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+      for (const r of b.content as { type?: string; url?: string; title?: string }[]) {
+        if (r?.url && !into.has(r.url)) into.set(r.url, r.title ?? '');
+      }
+    }
+  }
+}
+
 /**
- * Collects URLs where the company/founder is mentioned via a single web-search pass.
- * Links are harvested directly from search results — pages are never opened, and there is
- * no multi-round agentic reasoning, so it stays fast and cheap ("just links").
+ * Collects URLs where the company/founder is mentioned via a short web-search pass.
+ * Runs synchronously (fast enough to fit the request window) and harvests links directly
+ * from the search results — pages are never opened, no multi-round reasoning.
  */
 export async function extractMentions(
   apiKey: string,
@@ -26,27 +37,26 @@ export async function extractMentions(
   const who = company.name || company.domain;
   const founderLine = company.founderHint ? ` and its founder ${company.founderHint}` : '';
 
-  const res = await client.messages.create({
-    model: 'claude-sonnet-5',
-    max_tokens: 300,
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 } as unknown as Anthropic.Tool],
-    messages: [
-      {
-        role: 'user',
-        content: `Search the web for coverage of "${who}"${founderLine}: press releases, funding news, product announcements, founder interviews, and podcasts. Run a handful of targeted searches. You do not need to write a summary — the searches themselves are what matter.`,
-      },
-    ],
-  });
+  const messages: Anthropic.MessageParam[] = [
+    {
+      role: 'user',
+      content: `Search the web for coverage of "${who}"${founderLine}: press releases, funding news, product announcements, founder interviews, and podcasts. Run a handful of targeted searches. You do not need to write a summary — the searches are what matter.`,
+    },
+  ];
 
-  // Harvest every URL from the web_search_tool_result blocks in the response.
-  const found = new Map<string, string>(); // url -> title
-  for (const block of res.content) {
-    const b = block as unknown as { type: string; content?: unknown };
-    if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
-      for (const r of b.content as { type?: string; url?: string; title?: string }[]) {
-        if (r?.url && !found.has(r.url)) found.set(r.url, r.title ?? '');
-      }
-    }
+  const found = new Map<string, string>();
+
+  // Let the server-side search finish; continue only on pause_turn (bounded, not agentic).
+  for (let i = 0; i < 3; i++) {
+    const res = await client.messages.create({
+      model: 'claude-sonnet-5',
+      max_tokens: 300,
+      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 } as unknown as Anthropic.Tool],
+      messages,
+    });
+    harvest(res.content, found);
+    if (res.stop_reason !== 'pause_turn') break;
+    messages.push({ role: 'assistant', content: res.content });
   }
 
   return [...found.entries()].map(([url, title]) => ({

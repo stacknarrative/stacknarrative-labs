@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Mention, MentionCategory } from '../types/mentions';
-
-type Job = { status: 'running' | 'done' | 'error'; error?: string | null } | null;
 
 const CATEGORY_LABELS: Record<MentionCategory, string> = {
   press_release: 'Press releases',
@@ -19,53 +17,27 @@ export function MentionsPanel({ companyId }: { companyId: string }) {
   const [loaded, setLoaded] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  async function refresh() {
-    const res = await fetch(`/api/companies/${companyId}/mentions`);
-    const d = (await res.json()) as { mentions: Mention[]; job: Job };
-    setMentions(d.mentions ?? []);
-    if (d.job?.status === 'running') {
-      setRunning(true);
-    } else {
-      setRunning(false);
-      if (pollRef.current) clearInterval(pollRef.current);
-      if (d.job?.status === 'error') setError(d.job.error || 'Mentions scan failed');
-    }
-    return d.job?.status;
-  }
 
   useEffect(() => {
-    refresh()
-      .then((s) => {
-        if (s === 'running') startPolling();
-      })
+    fetch(`/api/companies/${companyId}/mentions`)
+      .then((r) => r.json() as Promise<{ mentions: Mention[] }>)
+      .then((d) => setMentions(d.mentions ?? []))
       .catch(() => {})
       .finally(() => setLoaded(true));
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
-
-  function startPolling() {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => refresh().catch(() => {}), 5000);
-  }
 
   async function run() {
     setError(null);
     setRunning(true);
     try {
       const res = await fetch(`/api/companies/${companyId}/mentions`, { method: 'POST' });
-      if (!res.ok && res.status !== 202) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error || 'Failed to start');
-      }
-      startPolling();
+      const data = (await res.json()) as { error?: string; mentions?: Mention[] };
+      if (!res.ok) throw new Error(data.error || 'Failed');
+      setMentions(data.mentions ?? []);
     } catch (err) {
-      setRunning(false);
       setError(err instanceof Error ? err.message : 'Failed');
+    } finally {
+      setRunning(false);
     }
   }
 
@@ -87,12 +59,11 @@ export function MentionsPanel({ companyId }: { companyId: string }) {
       {error && <p className="text-sm text-red-400">{error}</p>}
       {running && (
         <p className="text-sm text-neutral-500">
-          Searching the web for links where this company/founder is mentioned. Runs in the background (1–2 min); links
-          only, pages are not opened. You can leave and come back.
+          Searching the web for links where this company/founder is mentioned (~15s). Links only — pages are not opened.
         </p>
       )}
 
-      {!running && mentions.length === 0 && (
+      {!running && mentions.length === 0 && !error && (
         <p className="text-sm text-neutral-500">No mention links yet. Click “Scan for mentions”.</p>
       )}
 
