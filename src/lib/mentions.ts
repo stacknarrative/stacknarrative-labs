@@ -44,35 +44,28 @@ export async function extractMentions(
   const who = company.name || company.domain;
   const founderLine = company.founderHint ? ` and its founder ${company.founderHint}` : '';
 
-  const messages: Anthropic.MessageParam[] = [
-    {
-      role: 'user',
-      content: `Search the web for coverage of "${who}"${founderLine}: press releases, funding news, product announcements, founder interviews, and podcasts. Run a handful of targeted searches. You do not need to write a summary — the searches are what matter.`,
-    },
-  ];
-
   const found = new Map<string, string>();
-  let lastError: string | null = null;
 
-  // Let the server-side search finish; continue only on pause_turn (bounded, not agentic).
-  for (let i = 0; i < 3; i++) {
-    const res = await client.messages.create({
-      model: 'claude-sonnet-5',
-      max_tokens: 2048,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 } as unknown as Anthropic.Tool],
-      messages,
-    });
-    lastError = harvest(res.content, found);
-    if (res.stop_reason !== 'pause_turn') break;
-    messages.push({ role: 'assistant', content: res.content });
+  // ONE search round only — keeps it fast and well under Cloudflare's request limit.
+  const res = await client.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 1024,
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 } as unknown as Anthropic.Tool],
+    messages: [
+      {
+        role: 'user',
+        content: `Search the web for coverage of "${who}"${founderLine}: press, funding, product news, interviews, or podcasts. Do at most two searches. No summary needed — the searches are what matter.`,
+      },
+    ],
+  });
+
+  const searchError = harvest(res.content, found);
+  if (found.size === 0 && searchError) {
+    throw new Error(`web search error: ${searchError}`);
   }
 
-  // If nothing was found and the search itself errored, surface that instead of an empty result.
-  if (found.size === 0 && lastError) {
-    throw new Error(`web search error: ${lastError}`);
-  }
-
-  return [...found.entries()].map(([url, title]) => ({
+  // Cap at 5 links.
+  return [...found.entries()].slice(0, 5).map(([url, title]) => ({
     url,
     title: title || undefined,
     category: classify(url, title),

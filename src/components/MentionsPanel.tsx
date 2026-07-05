@@ -29,14 +29,21 @@ export function MentionsPanel({ companyId }: { companyId: string }) {
   async function run() {
     setError(null);
     setRunning(true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 90_000);
     try {
-      const res = await fetch(`/api/companies/${companyId}/mentions`, { method: 'POST' });
+      const res = await fetch(`/api/companies/${companyId}/mentions`, { method: 'POST', signal: ctrl.signal });
       const data = (await res.json()) as { error?: string; mentions?: Mention[] };
       if (!res.ok) throw new Error(data.error || 'Failed');
       setMentions(data.mentions ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed');
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setError('Took too long (over 90s) — please retry.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed');
+      }
     } finally {
+      clearTimeout(timer);
       setRunning(false);
     }
   }
