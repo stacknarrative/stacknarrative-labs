@@ -1,0 +1,126 @@
+import { useEffect, useRef, useState } from 'react';
+import type { Mention, MentionCategory } from '../types/mentions';
+
+type Job = { status: 'running' | 'done' | 'error'; error?: string | null } | null;
+
+const CATEGORY_LABELS: Record<MentionCategory, string> = {
+  press_release: 'Press releases',
+  funding: 'Funding news',
+  product_news: 'Product news',
+  interview: 'Founder interviews',
+  podcast: 'Podcasts',
+  other: 'Other mentions',
+};
+
+const CATEGORY_ORDER: MentionCategory[] = ['press_release', 'funding', 'product_news', 'interview', 'podcast', 'other'];
+
+export function MentionsPanel({ companyId }: { companyId: string }) {
+  const [mentions, setMentions] = useState<Mention[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function refresh() {
+    const res = await fetch(`/api/companies/${companyId}/mentions`);
+    const d = (await res.json()) as { mentions: Mention[]; job: Job };
+    setMentions(d.mentions ?? []);
+    if (d.job?.status === 'running') {
+      setRunning(true);
+    } else {
+      setRunning(false);
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (d.job?.status === 'error') setError(d.job.error || 'Mentions scan failed');
+    }
+    return d.job?.status;
+  }
+
+  useEffect(() => {
+    refresh()
+      .then((s) => {
+        if (s === 'running') startPolling();
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId]);
+
+  function startPolling() {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => refresh().catch(() => {}), 5000);
+  }
+
+  async function run() {
+    setError(null);
+    setRunning(true);
+    try {
+      const res = await fetch(`/api/companies/${companyId}/mentions`, { method: 'POST' });
+      if (!res.ok && res.status !== 202) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error || 'Failed to start');
+      }
+      startPolling();
+    } catch (err) {
+      setRunning(false);
+      setError(err instanceof Error ? err.message : 'Failed');
+    }
+  }
+
+  if (!loaded) return <p className="text-sm text-neutral-500">Loading…</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Mentions &amp; coverage links</h2>
+        <button
+          onClick={run}
+          disabled={running}
+          className="rounded bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 disabled:opacity-50"
+        >
+          {running ? 'Scanning…' : mentions.length > 0 ? 'Re-scan' : 'Scan for mentions'}
+        </button>
+      </div>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+      {running && (
+        <p className="text-sm text-neutral-500">
+          Searching the web for links where this company/founder is mentioned. Runs in the background (1–2 min); links
+          only, pages are not opened. You can leave and come back.
+        </p>
+      )}
+
+      {!running && mentions.length === 0 && (
+        <p className="text-sm text-neutral-500">No mention links yet. Click “Scan for mentions”.</p>
+      )}
+
+      {mentions.length > 0 && (
+        <div className="rounded-lg border border-neutral-800 bg-neutral-900 p-6">
+          {CATEGORY_ORDER.map((cat) => {
+            const items = mentions.filter((m) => (m.category || 'other') === cat);
+            if (items.length === 0) return null;
+            return (
+              <div key={cat} className="border-t border-neutral-800 py-4 first:border-t-0 first:pt-0">
+                <h3 className="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">
+                  {CATEGORY_LABELS[cat]} ({items.length})
+                </h3>
+                <ul className="space-y-1 text-sm">
+                  {items.map((m) => (
+                    <li key={m.id}>
+                      <a href={m.url} target="_blank" rel="noreferrer" className="text-sky-400 hover:underline">
+                        {m.title || m.url}
+                      </a>
+                      {m.title && <span className="ml-2 text-xs text-neutral-600">{m.url}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
