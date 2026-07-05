@@ -29,7 +29,7 @@ export async function extractMentions(
   const res = await client.messages.create({
     model: 'claude-sonnet-5',
     max_tokens: 300,
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 } as unknown as Anthropic.Tool],
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 } as unknown as Anthropic.Tool],
     messages: [
       {
         role: 'user',

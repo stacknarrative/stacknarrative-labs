@@ -9,8 +9,26 @@ export async function getMentions(db: D1Database, companyId: string): Promise<Me
   return rows.results ?? [];
 }
 
+const STALE_MS = 90_000;
+
 export async function getMentionJob(db: D1Database, companyId: string): Promise<MentionJob | null> {
-  return db.prepare('SELECT status, error, updated_at FROM mention_jobs WHERE company_id = ?').bind(companyId).first<MentionJob>();
+  const job = await db
+    .prepare('SELECT status, error, updated_at FROM mention_jobs WHERE company_id = ?')
+    .bind(companyId)
+    .first<MentionJob>();
+  if (!job) return null;
+
+  // If a job has been "running" too long, the background worker was almost certainly killed.
+  // Flag it as failed so the UI stops spinning and offers a retry instead of hanging forever.
+  if (job.status === 'running') {
+    const age = Date.now() - new Date(`${job.updated_at}Z`).getTime();
+    if (Number.isFinite(age) && age > STALE_MS) {
+      const error = 'Scan timed out — please retry';
+      await setMentionJob(db, companyId, 'error', error);
+      return { status: 'error', error, updated_at: job.updated_at };
+    }
+  }
+  return job;
 }
 
 export async function setMentionJob(db: D1Database, companyId: string, status: string, error: string | null = null): Promise<void> {
