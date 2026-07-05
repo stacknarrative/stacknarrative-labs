@@ -1,31 +1,22 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { ExtractedMention } from '../types/mentions';
+import type { ExtractedMention, MentionCategory } from '../types/mentions';
 
-const SCHEMA = {
-  type: 'object' as const,
-  properties: {
-    mentions: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          url: { type: 'string' },
-          title: { type: 'string' },
-          category: {
-            type: 'string',
-            enum: ['press_release', 'funding', 'product_news', 'interview', 'podcast', 'other'],
-          },
-        },
-        required: ['url'],
-      },
-    },
-  },
-  required: ['mentions'],
-};
+const CATEGORIES: MentionCategory[] = ['press_release', 'funding', 'product_news', 'interview', 'podcast', 'other'];
+
+function classify(url: string, title: string): MentionCategory {
+  const s = `${url} ${title}`.toLowerCase();
+  if (/podcast|episode|listen|spotify|apple\.com\/.*podcast/.test(s)) return 'podcast';
+  if (/interview|q&a|fireside|in conversation|sits down/.test(s)) return 'interview';
+  if (/fund|raise|series [a-e]|seed|investment|valuation|venture/.test(s)) return 'funding';
+  if (/launch|announc|releases?|unveil|introduc|new feature|product update/.test(s)) return 'product_news';
+  if (/press|newsroom|pr-?wire|businesswire|prnewswire|press-release/.test(s)) return 'press_release';
+  return 'other';
+}
 
 /**
- * Finds URLs where the company/founder is mentioned (press, funding, product news, interviews,
- * podcasts) via a minimal web search. Only the links are collected — pages are never opened.
+ * Collects URLs where the company/founder is mentioned via a single web-search pass.
+ * Links are harvested directly from search results — pages are never opened, and there is
+ * no multi-round agentic reasoning, so it stays fast and cheap ("just links").
  */
 export async function extractMentions(
   apiKey: string,
@@ -33,42 +24,36 @@ export async function extractMentions(
 ): Promise<ExtractedMention[]> {
   const client = new Anthropic({ apiKey });
   const who = company.name || company.domain;
-  const founderLine = company.founderHint ? ` Founder: ${company.founderHint}.` : '';
+  const founderLine = company.founderHint ? ` and its founder ${company.founderHint}` : '';
 
-  const messages: Anthropic.MessageParam[] = [
-    {
-      role: 'user',
-      content: `Find public URLs where "${who}" (${company.websiteUrl})${founderLine} is mentioned: press releases, funding news, product announcements, founder interviews, and podcasts. Do a few targeted searches, then call record_mentions with the links you found (URL + short title + category). Do NOT open or summarize the pages — links only. Keep searches minimal.`,
-    },
-  ];
+  const res = await client.messages.create({
+    model: 'claude-sonnet-5',
+    max_tokens: 300,
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 } as unknown as Anthropic.Tool],
+    messages: [
+      {
+        role: 'user',
+        content: `Search the web for coverage of "${who}"${founderLine}: press releases, funding news, product announcements, founder interviews, and podcasts. Run a handful of targeted searches. You do not need to write a summary — the searches themselves are what matter.`,
+      },
+    ],
+  });
 
-  for (let i = 0; i < 4; i++) {
-    const res = await client.messages.create({
-      model: 'claude-sonnet-5',
-      max_tokens: 2000,
-      tools: [
-        { type: 'web_search_20260209', name: 'web_search', max_uses: 6 } as unknown as Anthropic.Tool,
-        {
-          name: 'record_mentions',
-          description: 'Records the list of links where the company/founder is mentioned.',
-          input_schema: SCHEMA,
-        },
-      ],
-      messages,
-    });
-
-    const record = res.content.find((b) => b.type === 'tool_use' && b.name === 'record_mentions');
-    if (record && record.type === 'tool_use') {
-      const out = (record.input as { mentions?: ExtractedMention[] }).mentions ?? [];
-      // Dedup by URL.
-      const seen = new Set<string>();
-      return out.filter((m) => m.url && !seen.has(m.url) && seen.add(m.url));
+  // Harvest every URL from the web_search_tool_result blocks in the response.
+  const found = new Map<string, string>(); // url -> title
+  for (const block of res.content) {
+    const b = block as unknown as { type: string; content?: unknown };
+    if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+      for (const r of b.content as { type?: string; url?: string; title?: string }[]) {
+        if (r?.url && !found.has(r.url)) found.set(r.url, r.title ?? '');
+      }
     }
-
-    messages.push({ role: 'assistant', content: res.content });
-    if (res.stop_reason === 'pause_turn') continue;
-    messages.push({ role: 'user', content: 'Now call record_mentions with the links you found.' });
   }
 
-  throw new Error('Mentions scan did not complete within the step budget');
+  return [...found.entries()].map(([url, title]) => ({
+    url,
+    title: title || undefined,
+    category: classify(url, title),
+  }));
 }
+
+export { CATEGORIES };
