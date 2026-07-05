@@ -13,15 +13,22 @@ function classify(url: string, title: string): MentionCategory {
   return 'other';
 }
 
-function harvest(content: Anthropic.ContentBlock[], into: Map<string, string>) {
+function harvest(content: Anthropic.ContentBlock[], into: Map<string, string>): string | null {
+  let searchError: string | null = null;
   for (const block of content) {
     const b = block as unknown as { type: string; content?: unknown };
-    if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) {
+    if (b.type !== 'web_search_tool_result') continue;
+    if (Array.isArray(b.content)) {
       for (const r of b.content as { type?: string; url?: string; title?: string }[]) {
         if (r?.url && !into.has(r.url)) into.set(r.url, r.title ?? '');
       }
+    } else if (b.content && typeof b.content === 'object') {
+      // Error shape: { type: 'web_search_tool_result_error', error_code: '...' }
+      const err = b.content as { error_code?: string };
+      if (err.error_code) searchError = err.error_code;
     }
   }
+  return searchError;
 }
 
 /**
@@ -45,18 +52,24 @@ export async function extractMentions(
   ];
 
   const found = new Map<string, string>();
+  let lastError: string | null = null;
 
   // Let the server-side search finish; continue only on pause_turn (bounded, not agentic).
   for (let i = 0; i < 3; i++) {
     const res = await client.messages.create({
       model: 'claude-sonnet-5',
-      max_tokens: 300,
+      max_tokens: 2048,
       tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 } as unknown as Anthropic.Tool],
       messages,
     });
-    harvest(res.content, found);
+    lastError = harvest(res.content, found);
     if (res.stop_reason !== 'pause_turn') break;
     messages.push({ role: 'assistant', content: res.content });
+  }
+
+  // If nothing was found and the search itself errored, surface that instead of an empty result.
+  if (found.size === 0 && lastError) {
+    throw new Error(`web search error: ${lastError}`);
   }
 
   return [...found.entries()].map(([url, title]) => ({
