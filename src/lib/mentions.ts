@@ -49,12 +49,12 @@ export async function extractMentions(
   // ONE search round only — keeps it fast and well under Cloudflare's request limit.
   const res = await client.messages.create({
     model: 'claude-sonnet-5',
-    max_tokens: 1024,
-    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 2 } as unknown as Anthropic.Tool],
+    max_tokens: 2048,
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 } as unknown as Anthropic.Tool],
     messages: [
       {
         role: 'user',
-        content: `Search the web for coverage of "${who}"${founderLine}: press, funding, product news, interviews, or podcasts. Do at most two searches. No summary needed — the searches are what matter.`,
+        content: `Search the web for coverage of "${who}"${founderLine}: press, funding, product news, interviews, or podcasts. Run 2–3 quick searches. No summary needed — the searches are what matter.`,
       },
     ],
   });
