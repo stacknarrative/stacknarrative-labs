@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FounderDossier, InsightSection } from '../types/founder';
+
+type Job = { status: 'running' | 'done' | 'error'; error?: string | null } | null;
 
 const SECTION_LABELS: Record<InsightSection, string> = {
   philosophy: 'Founder philosophy',
@@ -44,27 +46,55 @@ export function FounderPanel({ companyId }: { companyId: string }) {
   const [loaded, setLoaded] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function refresh() {
+    const res = await fetch(`/api/companies/${companyId}/founder`);
+    const d = (await res.json()) as { founder: FounderDossier | null; job: Job };
+    setDossier(d.founder);
+    if (d.job?.status === 'running') {
+      setRunning(true);
+    } else {
+      setRunning(false);
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (d.job?.status === 'error') setError(d.job.error || 'Founder research failed');
+    }
+    return d.job?.status;
+  }
 
   useEffect(() => {
-    fetch(`/api/companies/${companyId}/founder`)
-      .then((r) => r.json() as Promise<{ founder: FounderDossier | null }>)
-      .then((d) => setDossier(d.founder))
+    refresh()
+      .then((status) => {
+        if (status === 'running') startPolling();
+      })
       .catch(() => {})
       .finally(() => setLoaded(true));
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId]);
 
+  function startPolling() {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(() => {
+      refresh().catch(() => {});
+    }, 5000);
+  }
+
   async function run() {
-    setRunning(true);
     setError(null);
+    setRunning(true);
     try {
       const res = await fetch(`/api/companies/${companyId}/founder`, { method: 'POST' });
-      const data = (await res.json()) as { error?: string; founder: FounderDossier };
-      if (!res.ok) throw new Error(data.error || 'Failed');
-      setDossier(data.founder);
+      if (!res.ok && res.status !== 202) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error || 'Failed to start');
+      }
+      startPolling();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed');
-    } finally {
       setRunning(false);
+      setError(err instanceof Error ? err.message : 'Failed');
     }
   }
 
@@ -79,14 +109,15 @@ export function FounderPanel({ companyId }: { companyId: string }) {
           disabled={running}
           className="rounded bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 disabled:opacity-50"
         >
-          {running ? 'Researching… (30–60s)' : dossier ? 'Re-run' : 'Run founder research'}
+          {running ? 'Researching…' : dossier ? 'Re-run' : 'Run founder research'}
         </button>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
       {running && (
         <p className="text-sm text-neutral-500">
-          Searching public sources (interviews, blogs, talks, press) and building the profile. This takes 30–60 seconds.
+          Searching public sources (interviews, blogs, talks, press) and building the profile. This runs in the
+          background and can take 2–4 minutes — you can leave this page and come back; it keeps updating automatically.
         </p>
       )}
 

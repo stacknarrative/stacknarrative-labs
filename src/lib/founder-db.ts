@@ -1,6 +1,26 @@
 import type { FounderIntelligence, FounderDossier, FounderProfileRow, FounderInsight, FounderTimelineEntry, FounderSource } from '../types/founder';
 import { newId } from './id';
 
+export interface FounderJob {
+  status: 'running' | 'done' | 'error';
+  error?: string | null;
+  updated_at: string;
+}
+
+export async function getFounderJob(db: D1Database, companyId: string): Promise<FounderJob | null> {
+  return db.prepare('SELECT status, error, updated_at FROM founder_jobs WHERE company_id = ?').bind(companyId).first<FounderJob>();
+}
+
+export async function setFounderJob(db: D1Database, companyId: string, status: string, error: string | null = null): Promise<void> {
+  await db
+    .prepare(
+      `INSERT INTO founder_jobs (company_id, status, error, updated_at) VALUES (?, ?, ?, datetime('now'))
+       ON CONFLICT(company_id) DO UPDATE SET status = excluded.status, error = excluded.error, updated_at = datetime('now')`
+    )
+    .bind(companyId, status, error)
+    .run();
+}
+
 export async function getFounderDossier(db: D1Database, companyId: string): Promise<FounderDossier | null> {
   const profile = await db
     .prepare('SELECT * FROM founder_profiles WHERE company_id = ?')
