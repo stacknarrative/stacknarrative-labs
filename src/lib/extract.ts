@@ -12,6 +12,11 @@ const EXTRACTION_SCHEMA = {
     value_proposition: { type: 'string', description: 'The core value proposition in one or two sentences' },
     category: { type: 'string', description: 'The product category this company claims to be in' },
     icp: { type: 'string', description: 'Ideal customer profile / target segment as implied by the site' },
+    about_dump: {
+      type: 'string',
+      description:
+        'A thorough plain-text dump of everything found on the About / Our Story / Company pages: history, founding story, mission, values, milestones, team, culture, locations, any facts stated. Capture it all; do not summarize away detail.',
+    },
     founders: {
       type: 'array',
       items: {
@@ -99,10 +104,17 @@ export async function extractCompanyData(apiKey: string, page: ScrapedPage): Pro
 Source page: ${page.url}
 Page title: ${page.title}
 
-Visible page text:
+Visible homepage text:
 """
 ${page.text}
 """
+
+About / Our Story / Company page text (may be empty):
+"""
+${page.aboutText || '(none found)'}
+"""
+
+Fill "about_dump" with everything of substance from the About / Our Story / Company page text above — history, founding story, mission, values, milestones, team, culture, locations, and any stated facts. If no about pages were found, leave it out.
 
 Always fill in "name" and "tagline": infer the company name from the page title, logo, hero copy, or the domain (${page.url}), and the tagline from the hero headline or title — these are always derivable, so never leave them blank.
 

@@ -81,8 +81,8 @@ export async function createDraftCompany(db: D1Database, input: CreateDraftInput
     db
       .prepare(
         `INSERT INTO companies
-         (id, domain, website_url, name, tagline, headline, subheadline, value_proposition, category, icp, status, last_scanned_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`
+         (id, domain, website_url, name, tagline, headline, subheadline, value_proposition, category, icp, about_content, status, last_scanned_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`
       )
       .bind(
         companyId,
@@ -95,6 +95,7 @@ export async function createDraftCompany(db: D1Database, input: CreateDraftInput
         extracted.value_proposition ?? null,
         extracted.category ?? null,
         extracted.icp ?? null,
+        extracted.about_dump ?? null,
         now,
         now,
         now

@@ -55,6 +55,12 @@ export function DossierView({ company }: { company: CompanyDossier }) {
         </dl>
       </Section>
 
+      {company.about_content && (
+        <Section title="About / Our Story">
+          <p className="whitespace-pre-wrap text-sm text-neutral-300">{company.about_content}</p>
+        </Section>
+      )}
+
       {company.founders.length > 0 && (
         <Section title="Founders">
           <ul className="space-y-1">

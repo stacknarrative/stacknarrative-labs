@@ -69,6 +69,7 @@ export interface Company {
   value_proposition?: string | null;
   category?: string | null;
   icp?: string | null;
+  about_content?: string | null;
   status: CompanyStatus;
   last_scanned_at?: string | null;
   created_at: string;
@@ -94,6 +95,7 @@ export interface ExtractedCompanyData {
   value_proposition?: string;
   category?: string;
   icp?: string;
+  about_dump?: string;
   founders: Omit<Founder, 'id'>[];
   products: (Omit<Product, 'id' | 'features'> & { features: Omit<ProductFeature, 'id'>[] })[];
   competitors: Omit<Competitor, 'id' | 'linked_company_id'>[];

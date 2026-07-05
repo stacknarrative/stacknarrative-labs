@@ -10,6 +10,7 @@ CREATE TABLE companies (
   value_proposition TEXT,
   category TEXT,
   icp TEXT,
+  about_content TEXT,
   status TEXT NOT NULL DEFAULT 'draft', -- 'draft' | 'verified'
   last_scanned_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
