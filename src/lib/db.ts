@@ -206,6 +206,20 @@ export async function touchLastScanned(db: D1Database, companyId: string): Promi
     .run();
 }
 
+/** Deletes a company and all of its child rows. */
+export async function deleteCompany(db: D1Database, companyId: string): Promise<void> {
+  await db.batch([
+    db.prepare('DELETE FROM product_features WHERE product_id IN (SELECT id FROM products WHERE company_id = ?)').bind(companyId),
+    db.prepare('DELETE FROM founders WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM products WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM competitors WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM pricing_tiers WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM field_sources WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM company_mentions WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM companies WHERE id = ?').bind(companyId),
+  ]);
+}
+
 export interface EditableFields {
   name?: string;
   tagline?: string;

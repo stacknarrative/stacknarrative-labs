@@ -53,6 +53,20 @@ export function ManagePanel({ companyId }: { companyId: string }) {
     }
   }
 
+  async function deleteCompany() {
+    if (!confirm('Delete this company and all its data? This cannot be undone.')) return;
+    setBusy('clear');
+    setError(null);
+    try {
+      const res = await fetch(`/api/companies/${companyId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      location.href = '/';
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete failed');
+      setBusy(null);
+    }
+  }
+
   async function rescan() {
     setBusy('rescan');
     setMsg(null);
@@ -104,6 +118,16 @@ export function ManagePanel({ companyId }: { companyId: string }) {
         </button>
         {msg && <span className="text-sm text-emerald-400">{msg}</span>}
         {error && <span className="text-sm text-red-400">{error}</span>}
+      </div>
+
+      <div className="border-t border-neutral-800 pt-4">
+        <button
+          onClick={deleteCompany}
+          disabled={busy !== null}
+          className="rounded border border-red-800 px-3 py-1.5 text-sm font-medium text-red-300 hover:bg-red-950 disabled:opacity-40"
+        >
+          Delete this company
+        </button>
       </div>
     </div>
   );
