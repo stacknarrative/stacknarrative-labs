@@ -1,7 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { DossierView } from '../../components/DossierView';
-import { MentionsPanel } from '../../components/MentionsPanel';
+import { ReviewsPanel } from '../../components/ReviewsPanel';
 import { getCompanyDossier } from '../../lib/db';
 
 export const prerender = false;
@@ -14,7 +14,12 @@ const company = id ? await getCompanyDossier(DB, id) : null;
   {company ? (
     <div class="space-y-8">
       <DossierView company={company} />
-      <MentionsPanel client:load companyId={company.id} />
+      <ReviewsPanel
+        client:load
+        companyId={company.id}
+        initialLikes={company.product_likes ?? ''}
+        initialDislikes={company.product_dislikes ?? ''}
+      />
     </div>
   ) : (
     <p class="text-neutral-400">No company found with that id.</p>

@@ -205,3 +205,10 @@ export async function touchLastScanned(db: D1Database, companyId: string): Promi
     .bind(new Date().toISOString(), new Date().toISOString(), companyId)
     .run();
 }
+
+export async function saveReviews(db: D1Database, companyId: string, likes: string, dislikes: string): Promise<void> {
+  await db
+    .prepare('UPDATE companies SET product_likes = ?, product_dislikes = ?, updated_at = ? WHERE id = ?')
+    .bind(likes || null, dislikes || null, new Date().toISOString(), companyId)
+    .run();
+}

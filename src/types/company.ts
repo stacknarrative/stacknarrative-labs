@@ -70,6 +70,8 @@ export interface Company {
   category?: string | null;
   icp?: string | null;
   about_content?: string | null;
+  product_likes?: string | null;
+  product_dislikes?: string | null;
   status: CompanyStatus;
   last_scanned_at?: string | null;
   created_at: string;

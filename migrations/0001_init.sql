@@ -11,6 +11,8 @@ CREATE TABLE companies (
   category TEXT,
   icp TEXT,
   about_content TEXT,
+  product_likes TEXT,
+  product_dislikes TEXT,
   status TEXT NOT NULL DEFAULT 'draft', -- 'draft' | 'verified'
   last_scanned_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
