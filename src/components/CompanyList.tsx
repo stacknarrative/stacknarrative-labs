@@ -16,13 +16,15 @@ const EXPORT_COLUMNS: (keyof Company)[] = [
   'status',
 ];
 
-function toCsv(rows: Company[]): string {
+function toCsv(rows: Company[], mentionsById: Map<string, string>): string {
   const esc = (v: unknown) => {
     const s = v == null ? '' : String(v);
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
-  const header = EXPORT_COLUMNS.join(',');
-  const body = rows.map((r) => EXPORT_COLUMNS.map((c) => esc(r[c])).join(',')).join('\n');
+  const header = [...EXPORT_COLUMNS, 'mentions'].join(',');
+  const body = rows
+    .map((r) => [...EXPORT_COLUMNS.map((c) => esc(r[c])), esc(mentionsById.get(r.id) ?? '')].join(','))
+    .join('\n');
   return `${header}\n${body}`;
 }
 
@@ -92,11 +94,26 @@ export function CompanyList() {
     setRescanning(null);
   }
 
-  function exportSelected() {
+  async function exportSelected() {
     if (!companies) return;
     const rows = companies.filter((c) => selected.has(c.id));
     if (rows.length === 0) return;
-    const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8' });
+
+    // Fetch each selected company's mention links to include in the export.
+    const mentionsById = new Map<string, string>();
+    await Promise.all(
+      rows.map(async (c) => {
+        try {
+          const res = await fetch(`/api/companies/${c.id}/mentions`);
+          const d = (await res.json()) as { mentions?: { category?: string | null; url: string }[] };
+          mentionsById.set(c.id, (d.mentions ?? []).map((m) => `[${m.category ?? 'other'}] ${m.url}`).join(' | '));
+        } catch {
+          /* leave empty */
+        }
+      })
+    );
+
+    const blob = new Blob([toCsv(rows, mentionsById)], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
