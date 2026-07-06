@@ -206,6 +206,38 @@ export async function touchLastScanned(db: D1Database, companyId: string): Promi
     .run();
 }
 
+export interface EditableFields {
+  name?: string;
+  tagline?: string;
+  headline?: string;
+  subheadline?: string;
+  value_proposition?: string;
+  category?: string;
+  icp?: string;
+  about_content?: string;
+}
+
+export async function updateCompanyFields(db: D1Database, companyId: string, f: EditableFields): Promise<void> {
+  await db
+    .prepare(
+      `UPDATE companies SET name = ?, tagline = ?, headline = ?, subheadline = ?, value_proposition = ?,
+         category = ?, icp = ?, about_content = ?, updated_at = ? WHERE id = ?`
+    )
+    .bind(
+      f.name || null,
+      f.tagline || null,
+      f.headline || null,
+      f.subheadline || null,
+      f.value_proposition || null,
+      f.category || null,
+      f.icp || null,
+      f.about_content || null,
+      new Date().toISOString(),
+      companyId
+    )
+    .run();
+}
+
 export async function saveReviews(db: D1Database, companyId: string, likes: string, dislikes: string): Promise<void> {
   await db
     .prepare('UPDATE companies SET product_likes = ?, product_dislikes = ?, updated_at = ? WHERE id = ?')
