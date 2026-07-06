@@ -1,6 +1,6 @@
 import type { APIRoute } from 'astro';
 import { normalizeDomain, toWebsiteUrl } from '../../lib/domain';
-import { findCompanyByDomain, createDraftCompany, touchLastScanned } from '../../lib/db';
+import { findCompanyByDomain, createDraftCompany, touchLastScanned, markCompanyVerified } from '../../lib/db';
 import { findCompanyUrl } from '../../lib/find-url';
 import { scrapePage } from '../../lib/scraper';
 import { extractCompanyData } from '../../lib/extract';
@@ -36,6 +36,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const extracted = await extractCompanyData(ANTHROPIC_API_KEY, scraped);
     const companyId = await createDraftCompany(DB, { domain, websiteUrl, extracted, sourceUrl: scraped.url });
     await touchLastScanned(DB, companyId);
+    await markCompanyVerified(DB, companyId);
 
     return Response.json({ status: 'scanned', name, companyId, url, companyName: extracted.name ?? name });
   } catch (err) {

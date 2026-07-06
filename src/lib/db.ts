@@ -199,6 +199,13 @@ export async function verifyCompany(db: D1Database, input: VerifyCompanyInput): 
     .run();
 }
 
+export async function markCompanyVerified(db: D1Database, companyId: string): Promise<void> {
+  await db
+    .prepare("UPDATE companies SET status = 'verified', updated_at = ? WHERE id = ?")
+    .bind(new Date().toISOString(), companyId)
+    .run();
+}
+
 export async function touchLastScanned(db: D1Database, companyId: string): Promise<void> {
   await db
     .prepare('UPDATE companies SET last_scanned_at = ?, updated_at = ? WHERE id = ?')

@@ -21,9 +21,9 @@ const STATUS_STYLE: Record<Status, string> = {
 const STATUS_LABEL: Record<Status, string> = {
   pending: 'Waiting',
   scanning: 'Scanning…',
-  scanned: 'Saved',
+  scanned: 'Saved (verified)',
   duplicate: 'Already in DB',
-  no_url: 'No URL found',
+  no_url: 'No match — scan separately',
   error: 'Failed',
 };
 
