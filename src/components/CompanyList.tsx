@@ -11,6 +11,8 @@ const EXPORT_COLUMNS: (keyof Company)[] = [
   'headline',
   'value_proposition',
   'icp',
+  'product_likes',
+  'product_dislikes',
   'status',
 ];
 

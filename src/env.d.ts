@@ -4,6 +4,7 @@
 interface Env {
   DB: D1Database;
   ANTHROPIC_API_KEY: string;
+  SERPER_API_KEY: string;
 }
 
 type Runtime = import('@astrojs/cloudflare').Runtime<Env>;

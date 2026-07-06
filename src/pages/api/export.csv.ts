@@ -13,6 +13,9 @@ const COLUMNS = [
   'value_proposition',
   'category',
   'icp',
+  'about_content',
+  'product_likes',
+  'product_dislikes',
   'status',
   'last_scanned_at',
 ] as const;
