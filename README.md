@@ -1,101 +1,66 @@
-# Stack Narrative Labs
+# Company Data Tool
 
-Research operating system for company intelligence, positioning, and GTM
-research. Paste a company URL, get an AI-drafted dossier, verify it, and it's
-saved for good — duplicates are caught by domain before anything is
-re-scraped.
+**v1.0 — 6 July 2026**
 
-Deployed independently from stacknarrative.com, at `labs.stacknarrative.com`.
+Research tool for hospitality/travel-technology companies. Scan a company's
+website into a structured record, enrich it with manual reviews and media
+links, edit or delete any field, and compare a set of competitors.
 
-## How it works
+Runs at `labs.stacknarrative.com` on Cloudflare Workers + D1. Private/internal.
 
-1. Enter a company URL on the home page.
-2. The server normalizes the URL to a root domain and checks the database —
-   if that domain has already been researched, the existing record is shown
-   immediately instead of re-scraping.
-3. If it's new, the homepage is fetched and reduced to visible text + nav
-   links (`src/lib/scraper.ts`).
-4. That text is sent to Claude with a structured schema
-   (`src/lib/extract.ts`), returning company name, tagline, headline, ICP,
-   founders, products (with sub-features), menu items, CTAs, integrations,
-   competitors, and pricing tiers.
-5. Everything is saved as a `draft` record. Nothing is treated as final until
-   a human reviews the fields on-screen and clicks **Save as verified**
-   (`src/components/VerifyPanel.tsx`) — this is deliberate: the AI drafts,
-   people verify.
-6. All researched companies show up in a list on the home page, each with a
-   full dossier detail page, and the whole table exports to CSV from
-   `/api/export.csv`.
+## What it does
 
-## Data model
+**Company scan (single or bulk)**
+- Enter a URL → scrapes the homepage + About/Our Story/Company pages → AI
+  extracts name, tagline, headline, subheadline, value proposition, category,
+  ICP, founders, products (with features), competitors, pricing, and an
+  "About" dump. Preview first; save only when you confirm.
+- Bulk add by **company name**: paste a list (or upload .txt/.csv). Each name
+  is looked up (hospitality-tech-biased search), its website found, scanned,
+  and saved as **verified** — one at a time with live progress.
+- Duplicate protection: an already-scanned domain is never re-scraped.
 
-See `migrations/0001_init.sql`. One `companies` row per business, with
-one-to-many child tables for `founders`, `products` → `product_features`,
-`menu_items`, `ctas`, `integrations`, `competitors`, `pricing_tiers`, and
-`review_themes`. `positioning_notes` is intentionally separate and is never
-written by the AI extraction step — that's the strategist's own analysis.
-`field_sources` records which page each field came from, for provenance.
+**Per company**
+- **Edit** any field and save.
+- **Reviews**: paste "Likes of product" and "Dislikes of product", saved to the company.
+- **Mentions**: on-demand Serper search that dumps press / funding / product /
+  interview / podcast links (category-disambiguated; links only, ~1s).
+- **Manage**: clear individual fields, **re-scan** the website for fresh data
+  (reviews kept), or delete the company entirely.
 
-## Local setup
+**Main table**
+- Filter by name, tick 5–7 companies to **Compare** (selection persists in the
+  browser), **Export selected** to CSV, or **Re-scan selected** in bulk.
+- Full-database **Export CSV** in the header.
+
+## Architecture
+
+- **Frontend/SSR**: Astro + React, Tailwind, deployed as a Cloudflare Worker.
+- **Database**: Cloudflare D1 (SQLite). Schema in `migrations/`.
+- **AI extraction**: Claude (Anthropic API) — `ANTHROPIC_API_KEY`.
+- **Link/URL search**: Serper (Google) — `SERPER_API_KEY`.
+
+## Required secrets (Cloudflare Worker → Settings → Variables and Secrets)
+
+- `ANTHROPIC_API_KEY` — Claude API key (website extraction).
+- `SERPER_API_KEY` — Serper.dev key (mentions + bulk URL lookup).
+- `DB` binding → the `labs_db` D1 database.
+
+## Migrations (run in the D1 Console, in order)
+
+- `0001_init.sql` — core tables.
+- `0002_about_content.sql` — About dump column.
+- `0004_reviews.sql` — product likes/dislikes columns.
+- `0005_mentions.sql` — company_mentions table.
+
+(`GET /api/debug-env` reports which secrets are bound — names only, no values.)
+
+## Local dev
 
 ```sh
 npm install
+npm run build
+npx wrangler dev --local      # local D1 + assets
 ```
 
-1. **Create the D1 database** (one-time, requires a Cloudflare account
-   logged into `wrangler`):
-
-   ```sh
-   npx wrangler d1 create labs_db
-   ```
-
-   Copy the `database_id` it prints into `wrangler.toml`.
-
-2. **Run the migration:**
-
-   ```sh
-   npm run db:migrate:local     # for local dev
-   npm run db:migrate:remote    # once, for the deployed database
-   ```
-
-3. **Set your Anthropic API key** as a secret (used by the extraction step):
-
-   ```sh
-   npx wrangler secret put ANTHROPIC_API_KEY
-   ```
-
-   For local dev, create a `.dev.vars` file (already git-ignored):
-
-   ```
-   ANTHROPIC_API_KEY=sk-ant-...
-   ```
-
-4. **Run the dev server:**
-
-   ```sh
-   npm run dev
-   ```
-
-## Deploying
-
-```sh
-npm run deploy
-```
-
-This builds the Astro site and deploys it to Cloudflare Pages via
-`wrangler pages deploy`. Point the `labs.stacknarrative.com` custom domain at
-the Cloudflare Pages project in the Cloudflare dashboard.
-
-## Known limitations (MVP)
-
-- Only the company's own website is scraped. G2/Capterra/LinkedIn/press are
-  intentionally out of scope for v1 — see the product discussion for why
-  (ToS risk on automated scraping of those sources) and the planned
-  semi-manual capture flow for adding them later.
-- No bulk Excel upload yet — single URL only. The pipeline (dedup → scrape →
-  extract → verify) is the same either way, so bulk upload is a matter of
-  looping this flow over spreadsheet rows.
-- No re-scan/versioning yet. Re-researching an already-known domain shows the
-  existing record rather than refreshing it.
-- No auth — this is meant to sit behind Cloudflare Access or similar before
-  any sensitive data goes in it.
+Set `ANTHROPIC_API_KEY` / `SERPER_API_KEY` in `.dev.vars` for local runs.

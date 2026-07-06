@@ -6,6 +6,7 @@ interface Props {
 }
 
 const { title } = Astro.props;
+const VERSION = 'v1.0 · 6 July 2026';
 ---
 <!doctype html>
 <html lang="en">
@@ -13,12 +14,12 @@ const { title } = Astro.props;
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <title>{title} · Stack Narrative Labs</title>
+    <title>{title} · Company Data Tool</title>
   </head>
   <body class="min-h-screen bg-neutral-950 text-neutral-100">
     <div class="mx-auto max-w-5xl px-6 py-10">
       <header class="mb-8 flex items-center justify-between">
-        <a href="/" class="text-lg font-semibold tracking-tight">Stack Narrative Labs</a>
+        <a href="/" class="text-lg font-semibold tracking-tight">Company Data Tool</a>
         <nav class="flex gap-4 text-sm text-neutral-400">
           <a href="/" class="hover:text-neutral-100">Research</a>
           <a href="/api/export.csv" class="hover:text-neutral-100">Export CSV</a>
@@ -27,6 +28,9 @@ const { title } = Astro.props;
       <main>
         <slot />
       </main>
+      <footer class="mt-16 border-t border-neutral-800 pt-4 text-xs text-neutral-600">
+        Company Data Tool · {VERSION}
+      </footer>
     </div>
   </body>
 </html>
