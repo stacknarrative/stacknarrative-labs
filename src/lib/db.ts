@@ -212,3 +212,118 @@ export async function saveReviews(db: D1Database, companyId: string, likes: stri
     .bind(likes || null, dislikes || null, new Date().toISOString(), companyId)
     .run();
 }
+
+/** Re-applies a fresh extraction to an existing company: overwrites scraped fields and
+ *  replaces the scraped child rows. Manual data (reviews, mentions) is left untouched. */
+export async function refreshCompany(
+  db: D1Database,
+  companyId: string,
+  extracted: ExtractedCompanyData,
+  sourceUrl: string
+): Promise<void> {
+  const now = new Date().toISOString();
+  const stmts: D1PreparedStatement[] = [
+    db
+      .prepare(
+        `UPDATE companies SET name = ?, tagline = ?, headline = ?, subheadline = ?, value_proposition = ?,
+           category = ?, icp = ?, about_content = ?, last_scanned_at = ?, updated_at = ? WHERE id = ?`
+      )
+      .bind(
+        extracted.name ?? null,
+        extracted.tagline ?? null,
+        extracted.headline ?? null,
+        extracted.subheadline ?? null,
+        extracted.value_proposition ?? null,
+        extracted.category ?? null,
+        extracted.icp ?? null,
+        extracted.about_dump ?? null,
+        now,
+        now,
+        companyId
+      ),
+    db.prepare('DELETE FROM product_features WHERE product_id IN (SELECT id FROM products WHERE company_id = ?)').bind(companyId),
+    db.prepare('DELETE FROM founders WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM products WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM competitors WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM pricing_tiers WHERE company_id = ?').bind(companyId),
+    db.prepare('DELETE FROM field_sources WHERE company_id = ?').bind(companyId),
+  ];
+
+  for (const founder of extracted.founders ?? []) {
+    stmts.push(
+      db
+        .prepare('INSERT INTO founders (id, company_id, name, title, linkedin_url) VALUES (?, ?, ?, ?, ?)')
+        .bind(newId(), companyId, founder.name, founder.title ?? null, founder.linkedin_url ?? null)
+    );
+  }
+  for (const product of extracted.products ?? []) {
+    const productId = newId();
+    stmts.push(
+      db.prepare('INSERT INTO products (id, company_id, name, description) VALUES (?, ?, ?, ?)').bind(productId, companyId, product.name, product.description ?? null)
+    );
+    for (const feature of product.features ?? []) {
+      stmts.push(
+        db.prepare('INSERT INTO product_features (id, product_id, name, description) VALUES (?, ?, ?, ?)').bind(newId(), productId, feature.name, feature.description ?? null)
+      );
+    }
+  }
+  for (const competitor of extracted.competitors ?? []) {
+    stmts.push(
+      db.prepare('INSERT INTO competitors (id, company_id, competitor_name, source) VALUES (?, ?, ?, ?)').bind(newId(), companyId, competitor.competitor_name, competitor.source ?? null)
+    );
+  }
+  for (const tier of extracted.pricing_tiers ?? []) {
+    stmts.push(
+      db
+        .prepare('INSERT INTO pricing_tiers (id, company_id, tier_name, price, billing_model, notes) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(newId(), companyId, tier.tier_name ?? null, tier.price ?? null, tier.billing_model ?? null, tier.notes ?? null)
+    );
+  }
+
+  const topLevelFields: (keyof ExtractedCompanyData)[] = ['name', 'tagline', 'headline', 'subheadline', 'value_proposition', 'category', 'icp'];
+  for (const field of topLevelFields) {
+    if (extracted[field]) {
+      stmts.push(
+        db
+          .prepare('INSERT INTO field_sources (id, company_id, field_name, source_url, confidence, extracted_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(newId(), companyId, field, sourceUrl, 0.7, now)
+      );
+    }
+  }
+
+  await db.batch(stmts);
+}
+
+// Fields the user can individually clear.
+const CLEARABLE_SCALARS: Record<string, string> = {
+  name: 'name',
+  tagline: 'tagline',
+  headline: 'headline',
+  subheadline: 'subheadline',
+  value_proposition: 'value_proposition',
+  category: 'category',
+  icp: 'icp',
+  about_content: 'about_content',
+};
+
+export async function clearCompanyFields(db: D1Database, companyId: string, fields: string[]): Promise<void> {
+  const stmts: D1PreparedStatement[] = [];
+  const setCols: string[] = [];
+
+  for (const f of fields) {
+    if (CLEARABLE_SCALARS[f]) setCols.push(`${CLEARABLE_SCALARS[f]} = NULL`);
+    else if (f === 'reviews') setCols.push('product_likes = NULL', 'product_dislikes = NULL');
+    else if (f === 'founders') stmts.push(db.prepare('DELETE FROM founders WHERE company_id = ?').bind(companyId));
+    else if (f === 'products') {
+      stmts.push(db.prepare('DELETE FROM product_features WHERE product_id IN (SELECT id FROM products WHERE company_id = ?)').bind(companyId));
+      stmts.push(db.prepare('DELETE FROM products WHERE company_id = ?').bind(companyId));
+    } else if (f === 'competitors') stmts.push(db.prepare('DELETE FROM competitors WHERE company_id = ?').bind(companyId));
+    else if (f === 'pricing') stmts.push(db.prepare('DELETE FROM pricing_tiers WHERE company_id = ?').bind(companyId));
+    else if (f === 'mentions') stmts.push(db.prepare('DELETE FROM company_mentions WHERE company_id = ?').bind(companyId));
+  }
+
+  if (setCols.length > 0) {
+    stmts.unshift(db.prepare(`UPDATE companies SET ${setCols.join(', ')}, updated_at = ? WHERE id = ?`).bind(new Date().toISOString(), companyId));
+  }
+  if (stmts.length > 0) await db.batch(stmts);
+}

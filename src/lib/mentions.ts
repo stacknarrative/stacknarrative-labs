@@ -32,13 +32,15 @@ async function serper(apiKey: string, path: 'search' | 'news', q: string): Promi
  */
 export async function extractMentions(
   apiKey: string,
-  company: { name?: string | null; websiteUrl: string; domain: string }
+  company: { name?: string | null; websiteUrl: string; domain: string; category?: string | null }
 ): Promise<ExtractedMention[]> {
   const who = company.name || company.domain;
+  // Disambiguate generic names (e.g. "Dharma") with the company's category/industry.
+  const ctx = company.category ? ` ${company.category}` : '';
 
   const [news, talks] = await Promise.all([
-    serper(apiKey, 'news', `"${who}"`),
-    serper(apiKey, 'search', `"${who}" (interview OR podcast OR funding)`),
+    serper(apiKey, 'news', `"${who}"${ctx}`),
+    serper(apiKey, 'search', `"${who}"${ctx} (interview OR podcast OR funding OR launch)`),
   ]);
 
   const found = new Map<string, { title: string; fromNews: boolean }>();

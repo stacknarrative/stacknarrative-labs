@@ -31,6 +31,7 @@ export function CompanyList() {
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [compareOnly, setCompareOnly] = useState(false);
+  const [rescanning, setRescanning] = useState<{ done: number; total: number } | null>(null);
 
   useEffect(() => {
     fetch('/api/companies')
@@ -71,6 +72,25 @@ export function CompanyList() {
     }
     return rows;
   }, [companies, compareOnly, selected, query]);
+
+  async function rescanSelected() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    setRescanning({ done: 0, total: ids.length });
+    for (let i = 0; i < ids.length; i++) {
+      try {
+        await fetch(`/api/companies/${ids[i]}/rescan`, { method: 'POST' });
+      } catch {
+        /* keep going */
+      }
+      setRescanning({ done: i + 1, total: ids.length });
+    }
+    // Reload the table with fresh data.
+    const res = await fetch('/api/companies');
+    const data = (await res.json()) as { companies: Company[] };
+    setCompanies(data.companies);
+    setRescanning(null);
+  }
 
   function exportSelected() {
     if (!companies) return;
@@ -113,6 +133,13 @@ export function CompanyList() {
           className="rounded bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 disabled:opacity-40"
         >
           Export selected
+        </button>
+        <button
+          onClick={rescanSelected}
+          disabled={selected.size === 0 || rescanning !== null}
+          className="rounded bg-sky-600 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-40"
+        >
+          {rescanning ? `Re-scanning ${rescanning.done}/${rescanning.total}…` : 'Re-scan selected'}
         </button>
         {selected.size > 0 && (
           <button onClick={clearSelection} className="rounded px-3 py-1.5 text-sm text-neutral-400 hover:text-neutral-100">

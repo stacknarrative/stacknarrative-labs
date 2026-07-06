@@ -28,6 +28,7 @@ export const POST: APIRoute = async ({ params, locals }) => {
       name: company.name,
       websiteUrl: company.website_url,
       domain: company.domain,
+      category: company.category,
     });
   } catch (err) {
     return Response.json(
