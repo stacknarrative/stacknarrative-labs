@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Company } from '../types/company';
+import { CATEGORIES, matchesCategory, type Category } from '../lib/categories';
 
 const STORAGE_KEY = 'compareIds';
 
@@ -31,6 +32,7 @@ function toCsv(rows: Company[], mentionsById: Map<string, string>): string {
 export function CompanyList() {
   const [companies, setCompanies] = useState<Company[] | null>(null);
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<Category | 'All'>('All');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [compareOnly, setCompareOnly] = useState(false);
   const [rescanning, setRescanning] = useState<{ done: number; total: number } | null>(null);
@@ -72,8 +74,13 @@ export function CompanyList() {
       const q = query.toLowerCase();
       rows = rows.filter((c) => (c.name || c.domain).toLowerCase().includes(q) || c.domain.toLowerCase().includes(q));
     }
+    if (category !== 'All') {
+      rows = rows.filter((c) =>
+        matchesCategory([c.category, c.tagline, c.headline, c.value_proposition].filter(Boolean).join(' '), category)
+      );
+    }
     return rows;
-  }, [companies, compareOnly, selected, query]);
+  }, [companies, compareOnly, selected, query, category]);
 
   async function rescanSelected() {
     const ids = [...selected];
@@ -135,6 +142,18 @@ export function CompanyList() {
           placeholder="Filter by name…"
           className="flex-1 rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm"
         />
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value as Category | 'All')}
+          className="rounded border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm"
+        >
+          <option value="All">All categories</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
         <button
           onClick={() => setCompareOnly((v) => !v)}
           disabled={selected.size === 0}
